@@ -1,0 +1,20 @@
+services:
+  fastdrive:
+    build: .
+    ports:
+      - "5012:5012"
+    environment:
+      FASTDRIVE_DB: /data/fastdrive.sqlite
+      FASTDRIVE_PORT: "5012"
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-xai}
+      MODEL_NAME: ${MODEL_NAME:-grok-4-1-fast-reasoning}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      FASTDRIVE_ADMIN_PASSWORD: ${FASTDRIVE_ADMIN_PASSWORD:-FastDrive2026$$}
+      FASTDRIVE_SECRET: ${FASTDRIVE_SECRET:-}
+    volumes:
+      - fastdrive-data:/data
+volumes:
+  fastdrive-data:
