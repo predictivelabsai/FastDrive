@@ -21,7 +21,7 @@ FastDrive ports the core of [Frappe Drive](https://github.com/frappe/drive)
 
 1. **Real file storage** — currently metadata only; store/serve actual bytes from
    a mounted volume, with previews for images/PDF/text.
-2. **Move / rename / delete** — drag-to-folder, rename inline, soft-delete to
+2. ✅ **Rename / delete / restore** (done) — rename inline, soft-delete to
    Trash and restore (Trash view exists; actions are read-only).
 3. **Share dialog** — add/remove people and change role from the UI
    (`Drive Permission` write path), plus public share links.

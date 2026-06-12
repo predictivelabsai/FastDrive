@@ -80,6 +80,12 @@ def entity_view(eid):
     acts = db.activity_for(eid)
     parent = db.entity(e["parent_id"]) if e["parent_id"] else None
     back = A("← Back", href=f"/folder/{e['parent_id']}" if e["parent_id"] else "/", cls="btn")
+    actions = Div(
+        Form(Input(name="name", value=e["name"], cls="rename-inp"),
+             Button("Rename", cls="btn", type="submit"),
+             **{"hx-post": f"/e/{eid}/rename"}, cls="inline-form"),
+        Button("🗑 Delete", cls="btn danger", **{"hx-post": f"/e/{eid}/trash"}),
+        cls="file-actions")
 
     info = Div(Div(H3("Details"), cls="card-header"),
                Div(Span("Type", cls="k"), Span(db.kind_label(e["kind"])),
@@ -100,6 +106,7 @@ def entity_view(eid):
                        cls="timeline"), cls="card")
     return Div(
         _title(e["name"], db.kind_label(e["kind"]), back),
+        actions,
         Div(Div(Div(db.icon(e["kind"]), cls="preview"), info,
                 Div(Div(H3("Activity"), cls="card-header"),
                     Ul(*[Li(Div(Strong(a["actor"]), " ", a["action"]), Div(_when(a["created"]), cls="when"))
@@ -141,7 +148,16 @@ def trash_view():
     head = _title("Trash", f"{len(ents)} items")
     if not ents:
         return head, Div(P("Trash is empty."), cls="empty")
-    return _table_view("Trash", f"{len(ents)} items", ents)
+    rows_ = [Tr(Td(Span(db.icon(e["kind"]) + " "), e["name"]),
+                Td(db.kind_label(e["kind"])),
+                Td(db.fmt_size(e["size_bytes"]) if e["kind"] != "folder" else "—", cls="num"),
+                Td(Div(Button("♻ Restore", cls="btn sm", **{"hx-post": f"/e/{e['id']}/restore"}),
+                       Button("✕ Delete forever", cls="btn sm danger", **{"hx-post": f"/e/{e['id']}/delete"}),
+                       style="display:flex;gap:6px;")))
+             for e in ents]
+    tbl = Table(Thead(Tr(Th("Name"), Th("Type"), Th("Size", cls="num"), Th("Action"))),
+                Tbody(*rows_), cls="tbl")
+    return head, Div(tbl, cls="card")
 
 
 def upload_view(done=False):

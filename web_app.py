@@ -108,6 +108,40 @@ def get(session, eid: int):
     return _guard(session, "drive", lambda: views.entity_view(eid))
 
 
+@rt("/e/{eid}/rename")
+def post(session, eid: int, name: str = ""):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.rename_entity(eid, name)
+    return Response(headers={"HX-Redirect": f"/e/{eid}"})
+
+
+@rt("/e/{eid}/trash")
+def post(session, eid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    e = db.entity(eid)
+    db.trash_entity(eid)
+    dest = f"/folder/{e['parent_id']}" if e and e["parent_id"] else "/"
+    return Response(headers={"HX-Redirect": dest})
+
+
+@rt("/e/{eid}/restore")
+def post(session, eid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.restore_entity(eid)
+    return Response(headers={"HX-Redirect": "/trash"})
+
+
+@rt("/e/{eid}/delete")
+def post(session, eid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.delete_forever(eid)
+    return Response(headers={"HX-Redirect": "/trash"})
+
+
 @rt("/shared")
 def get(session):
     return _guard(session, "shared", views.shared_view)

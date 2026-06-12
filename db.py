@@ -25,9 +25,10 @@ FILE_KINDS = {
 
 
 def connect():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
@@ -177,3 +178,58 @@ def stats():
         "starred": scalar("SELECT COUNT(*) FROM entities WHERE is_starred=1 AND in_trash=0") or 0,
         "trash": scalar("SELECT COUNT(*) FROM entities WHERE in_trash=1") or 0,
     }
+
+
+# --- file operations (transactional) ----------------------------------------
+
+def _log_activity(eid, action, actor=None):
+    with cursor() as conn:
+        actor = actor or ME
+        conn.execute("INSERT INTO activity(entity_id,actor,action,created) VALUES(?,?,?,datetime('now'))",
+                     (eid, actor, action))
+
+
+def rename_entity(eid: int, name: str):
+    name = (name or "").strip()
+    if not name:
+        return
+    with cursor() as conn:
+        conn.execute("UPDATE entities SET name=?, modified=datetime('now') WHERE id=?", (name, eid))
+    _log_activity(eid, "renamed")
+
+
+def trash_entity(eid: int):
+    """Soft-delete: move the entity (and, if a folder, its descendants) to trash."""
+    ids = _descendants(eid)
+    with cursor() as conn:
+        qmarks = ",".join("?" * len(ids))
+        conn.execute(f"UPDATE entities SET in_trash=1 WHERE id IN ({qmarks})", tuple(ids))
+    _log_activity(eid, "moved to trash")
+
+
+def restore_entity(eid: int):
+    ids = _descendants(eid)
+    with cursor() as conn:
+        qmarks = ",".join("?" * len(ids))
+        conn.execute(f"UPDATE entities SET in_trash=0 WHERE id IN ({qmarks})", tuple(ids))
+    _log_activity(eid, "restored")
+
+
+def delete_forever(eid: int):
+    ids = _descendants(eid)
+    with cursor() as conn:
+        qmarks = ",".join("?" * len(ids))
+        conn.execute(f"DELETE FROM shares WHERE entity_id IN ({qmarks})", tuple(ids))
+        conn.execute(f"DELETE FROM activity WHERE entity_id IN ({qmarks})", tuple(ids))
+        conn.execute(f"DELETE FROM entities WHERE id IN ({qmarks})", tuple(ids))
+
+
+def _descendants(eid: int) -> list[int]:
+    """eid plus all descendant ids (for folder operations)."""
+    ids, stack = [eid], [eid]
+    while stack:
+        pid = stack.pop()
+        for r in rows("SELECT id FROM entities WHERE parent_id=?", (pid,)):
+            ids.append(r["id"])
+            stack.append(r["id"])
+    return ids
