@@ -9,7 +9,8 @@ FastDrive ports the core of [Frappe Drive](https://github.com/frappe/drive)
 |---|---|---|
 | Files & folders | `Drive Entity` (tree) | `entities` (self-referential) |
 | Folder navigation | parent/child | breadcrumbs + tile browser |
-| Sharing | `Drive Permission` | `shares` (Viewer/Editor) + "Shared with me" |
+| Sharing | `Drive Permission` | `shares` (Viewer/Editor) + share dialog (add/remove/role) |
+| Public links | public entity flag | `public_links` (token) + login-free `/public/{token}` view |
 | Starred | `Drive Favourite` | `is_starred` + Starred view |
 | Activity log | `Drive Entity Activity Log` | `activity` per entity |
 | Trash | soft-delete | `in_trash` + Trash view |
@@ -23,8 +24,10 @@ FastDrive ports the core of [Frappe Drive](https://github.com/frappe/drive)
    a mounted volume, with previews for images/PDF/text.
 2. ✅ **Rename / delete / restore** (done) — rename inline, soft-delete to
    Trash and restore (Trash view exists; actions are read-only).
-3. **Share dialog** — add/remove people and change role from the UI
-   (`Drive Permission` write path), plus public share links.
+3. ✅ **Share dialog** (done) — add/remove people and change their role
+   (Viewer/Editor) inline from the file detail, all HTMX swapping just the share
+   panel; plus **public links** — generate a token, copy the URL, switch the
+   link's role or disable it, and a login-free `/public/{token}` preview page.
 4. **In-browser docs** — Frappe Drive has a built-in document editor; add a
    simple markdown/rich-text editor for `doc` entities.
 5. **Teams** — `Drive Team`/`Drive Team Member` (team drives separate from My Drive).

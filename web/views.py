@@ -96,14 +96,6 @@ def entity_view(eid):
                    Span("Starred", cls="k"), Span("Yes" if e["is_starred"] else "No"),
                    cls="kv"), cls="card")
 
-    share_card = Div(Div(H3(f"Shared with ({len(shares)})"), cls="card-header"),
-                     Table(Tbody(*[Tr(Td(s["shared_with"]), Td(_pill(s["role"])))
-                                   for s in shares] or [Tr(Td("Not shared.", colspan="2"))]), cls="tbl"),
-                     cls="card")
-    acts_card = Div(Div(H3("Activity"), cls="card-header"),
-                    Ul(*[Li(Div(Strong(a["actor"]), " ", a["action"]),
-                            Div(_when(a["created"]), cls="when")) for a in acts] or [Li("No activity.")],
-                       cls="timeline"), cls="card")
     return Div(
         _title(e["name"], db.kind_label(e["kind"]), back),
         actions,
@@ -111,7 +103,106 @@ def entity_view(eid):
                 Div(Div(H3("Activity"), cls="card-header"),
                     Ul(*[Li(Div(Strong(a["actor"]), " ", a["action"]), Div(_when(a["created"]), cls="when"))
                          for a in acts] or [Li("No activity.")], cls="timeline"), cls="card")),
-            Div(share_card), cls="detail-grid"))
+            Div(share_panel(eid)), cls="detail-grid"))
+
+
+def _role_select(name, current, **attrs):
+    opts = "".join(f'<option value="{r}"{" selected" if r == current else ""}>{r}</option>'
+                   for r in db.SHARE_ROLES)
+    attr_str = " ".join(f'{k.replace("_", "-")}="{v}"' for k, v in attrs.items())
+    return NotStr(f'<select name="{name}" {attr_str} '
+                  f'style="padding:5px 8px;border:1px solid var(--border);border-radius:7px;font-size:12px;">{opts}</select>')
+
+
+def share_panel(eid):
+    """The share dialog body: people with access, an add-person form, and a
+    public-link section. Swapped in place (id=share-panel) on every change."""
+    e = db.entity(eid)
+    shares = db.shares_for(eid)
+    link = db.public_link(eid)
+
+    people_rows = []
+    for s in shares:
+        people_rows.append(Tr(
+            Td(s["shared_with"]),
+            Td(_role_select("role", s["role"],
+                            hx_post=f"/e/{eid}/share/{s['id']}/role",
+                            hx_target="#share-panel", hx_swap="innerHTML", hx_trigger="change")),
+            Td(Button("✕", cls="btn sm danger", title="Remove access",
+                      **{"hx-post": f"/e/{eid}/share/{s['id']}/remove",
+                         "hx-target": "#share-panel", "hx-swap": "innerHTML"}))))
+    people_tbl = Table(Tbody(*people_rows) if people_rows
+                       else Tbody(Tr(Td("No one yet — add a person below.", colspan="3",
+                                        style="color:var(--text-mute);"))), cls="tbl")
+
+    add_form = Form(
+        Input(name="email", type="email", placeholder="name@example.com", required=True,
+              style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;"),
+        _role_select("role", "Viewer"),
+        Button("Share", cls="btn primary", type="submit"),
+        **{"hx-post": f"/e/{eid}/share", "hx-target": "#share-panel", "hx-swap": "innerHTML"},
+        style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;")
+
+    # public link section
+    if link:
+        url = f"/public/{link['token']}"
+        link_bits = [
+            Div(Span("🌐 Anyone with the link", style="font-weight:600;"),
+                _role_select("role", link["role"],
+                             hx_post=f"/e/{eid}/link/role", hx_target="#share-panel",
+                             hx_swap="innerHTML", hx_trigger="change"),
+                style="display:flex;gap:8px;align-items:center;justify-content:space-between;"),
+            Div(Input(value=url, readonly=True, id="public-link-input",
+                      style="flex:1;min-width:160px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--surface-2);"),
+                Button("Copy", cls="btn sm", type="button",
+                       onclick="var i=document.getElementById('public-link-input');i.select();"
+                               "navigator.clipboard&&navigator.clipboard.writeText(location.origin+i.value);"
+                               "this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1200);"),
+                style="display:flex;gap:8px;align-items:center;margin-top:8px;"),
+            Button("Disable link", cls="btn sm danger",
+                   **{"hx-post": f"/e/{eid}/link/disable", "hx-target": "#share-panel", "hx-swap": "innerHTML"},
+                   style="margin-top:8px;"),
+        ]
+    else:
+        link_bits = [
+            P("This file is private. Create a link anyone can open.", cls="sub"),
+            Button("🔗 Create public link", cls="btn",
+                   **{"hx-post": f"/e/{eid}/link", "hx-target": "#share-panel", "hx-swap": "innerHTML"}),
+        ]
+
+    return Div(
+        Div(Div(H3(f"People with access ({len(shares)})"), cls="card-header"),
+            people_tbl, add_form, cls="card"),
+        Div(Div(H3("Public link"), cls="card-header"), *link_bits, cls="card"),
+        id="share-panel")
+
+
+# ---------- public (unauthenticated) link view ------------------------------
+
+def public_view(token):
+    e = db.entity_by_token(token)
+    if not e:
+        return Div(
+            Div(Div("🔒", style="font-size:48px;"),
+                H1("Link unavailable"),
+                P("This link has been disabled or the file no longer exists.", cls="sub"),
+                style="text-align:center;padding:60px 20px;"),
+            cls="public-wrap")
+    is_folder = e["kind"] == "folder"
+    size = db.folder_size(e["id"]) if is_folder else e["size_bytes"]
+    body = Div(
+        Div("Shared via FastDrive", cls="public-badge"),
+        Div(db.icon(e["kind"]), cls="preview", style="font-size:64px;"),
+        H1(e["name"]),
+        Div(Span(db.kind_label(e["kind"])), Span(" · "), Span(db.fmt_size(size)),
+            Span(" · "), Span(f"{e['public_role']} access"), cls="sub",
+            style="margin-bottom:8px;"),
+        P(f"Shared by {e['owner']}.", cls="sub"),
+        (P("📁 Folder contents are visible to people you invite directly.", cls="sub")
+         if is_folder else
+         P("This is a public preview. The file itself is synthetic demo metadata.", cls="sub")),
+        cls="card", style="max-width:560px;margin:40px auto;text-align:center;")
+    return Div(body, cls="public-wrap")
 
 
 # ---------- filtered views --------------------------------------------------

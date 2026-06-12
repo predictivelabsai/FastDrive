@@ -89,6 +89,12 @@ CREATE TABLE IF NOT EXISTS activity (
     action        TEXT,
     created       TEXT
 );
+CREATE TABLE IF NOT EXISTS public_links (
+    entity_id     INTEGER PRIMARY KEY REFERENCES entities(id),
+    token         TEXT NOT NULL UNIQUE,
+    role          TEXT NOT NULL DEFAULT 'Viewer',   -- Viewer | Editor
+    created       TEXT
+);
 CREATE TABLE IF NOT EXISTS chat_messages (
     id            INTEGER PRIMARY KEY,
     thread_id     TEXT NOT NULL,
@@ -99,6 +105,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 CREATE INDEX IF NOT EXISTS idx_ent_parent ON entities(parent_id);
 CREATE INDEX IF NOT EXISTS idx_share_ent ON shares(entity_id);
 """
+
+SHARE_ROLES = ["Viewer", "Editor"]
 
 
 def init_schema():
@@ -233,3 +241,82 @@ def _descendants(eid: int) -> list[int]:
             ids.append(r["id"])
             stack.append(r["id"])
     return ids
+
+
+# --- sharing & public links (transactional) ---------------------------------
+
+def add_share(eid: int, email: str, role: str = "Viewer") -> bool:
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        return False
+    if role not in SHARE_ROLES:
+        role = "Viewer"
+    existing = one("SELECT id FROM shares WHERE entity_id=? AND lower(shared_with)=?", (eid, email))
+    with cursor() as conn:
+        if existing:
+            conn.execute("UPDATE shares SET role=? WHERE id=?", (role, existing["id"]))
+        else:
+            conn.execute("INSERT INTO shares(entity_id,shared_with,role) VALUES (?,?,?)", (eid, email, role))
+    _log_activity(eid, f"shared with {email} ({role})")
+    return True
+
+
+def set_share_role(share_id: int, role: str) -> bool:
+    if role not in SHARE_ROLES:
+        return False
+    with cursor() as conn:
+        conn.execute("UPDATE shares SET role=? WHERE id=?", (role, share_id))
+    return True
+
+
+def remove_share(share_id: int) -> bool:
+    s = one("SELECT * FROM shares WHERE id=?", (share_id,))
+    if not s:
+        return False
+    with cursor() as conn:
+        conn.execute("DELETE FROM shares WHERE id=?", (share_id,))
+    _log_activity(s["entity_id"], f"removed access for {s['shared_with']}")
+    return True
+
+
+def public_link(eid: int):
+    return one("SELECT * FROM public_links WHERE entity_id=?", (eid,))
+
+
+def create_public_link(eid: int, role: str = "Viewer"):
+    """Enable (or return the existing) public link for an entity."""
+    if role not in SHARE_ROLES:
+        role = "Viewer"
+    existing = public_link(eid)
+    if existing:
+        return existing
+    import secrets
+    token = secrets.token_urlsafe(9)
+    with cursor() as conn:
+        conn.execute("INSERT INTO public_links(entity_id,token,role,created) VALUES (?,?,?,datetime('now'))",
+                     (eid, token, role))
+    _log_activity(eid, "created a public link")
+    return public_link(eid)
+
+
+def set_public_role(eid: int, role: str) -> bool:
+    if role not in SHARE_ROLES:
+        return False
+    with cursor() as conn:
+        conn.execute("UPDATE public_links SET role=? WHERE entity_id=?", (role, eid))
+    return True
+
+
+def disable_public_link(eid: int) -> bool:
+    if not public_link(eid):
+        return False
+    with cursor() as conn:
+        conn.execute("DELETE FROM public_links WHERE entity_id=?", (eid,))
+    _log_activity(eid, "disabled the public link")
+    return True
+
+
+def entity_by_token(token: str):
+    return one("""SELECT e.*, pl.role public_role, pl.token token FROM public_links pl
+                  JOIN entities e ON e.id=pl.entity_id
+                  WHERE pl.token=? AND e.in_trash=0""", (token,))

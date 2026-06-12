@@ -80,6 +80,9 @@ td.num,th.num{text-align:right;}
 .rename-inp{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;min-width:240px;}
 .notice{margin-bottom:14px;padding:12px 16px;background:var(--accent-light);border-left:4px solid var(--accent);color:var(--accent-hover);border-radius:8px;font-size:13px;}
 .empty{padding:50px 24px;text-align:center;color:var(--text-mute);}
+.public-page{min-height:100vh;background:var(--bg);}
+.public-wrap{max-width:640px;margin:0 auto;padding:24px 16px;}
+.public-badge{display:inline-block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-hover);background:var(--accent-light);padding:3px 10px;border-radius:999px;margin-bottom:14px;}
 .login-wrap{height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e4f0fb 0%,#dbeefe 100%);}
 .login-card{background:#fff;padding:36px 40px;border-radius:14px;width:360px;box-shadow:0 20px 40px rgba(15,23,42,.08);}
 .login-card h1{margin:0 0 4px;font-size:22px;} .login-card p{margin:0 0 20px;color:var(--text-mute);font-size:13px;}
@@ -163,6 +166,14 @@ def right_pane_chat(thread_id):
             _sample_cards(),
             style="display:flex;flex-direction:column;flex:1;overflow:hidden;"),
         cls="right-pane")
+
+
+def public_page(*content):
+    """A standalone, login-free page for a shared public link."""
+    return (Title("Shared via FastDrive"),
+            Link(rel="icon", type="image/svg+xml", href="/static/favicon.svg"),
+            Style(LAYOUT_CSS),
+            Div(*content, cls="public-page"))
 
 
 def page(active, env, user_email, thread_id, *content, right_override=None):

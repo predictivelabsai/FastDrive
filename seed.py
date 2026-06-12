@@ -51,7 +51,7 @@ def _modified():
 def build():
     db.init_schema()
     with db.cursor() as conn:
-        for t in ("chat_messages", "activity", "shares", "entities"):
+        for t in ("chat_messages", "public_links", "activity", "shares", "entities"):
             conn.execute(f"DELETE FROM {t}")
 
     created = []  # (id, kind)

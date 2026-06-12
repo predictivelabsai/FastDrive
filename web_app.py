@@ -27,7 +27,7 @@ from fasthtml.common import (
 from starlette.responses import StreamingResponse, Response
 
 import db
-from web.layout import page, LAYOUT_CSS
+from web.layout import page, public_page, LAYOUT_CSS
 from web import views, ai
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s — %(message)s")
@@ -140,6 +140,60 @@ def post(session, eid: int):
         return Response("Unauthorized", status_code=401)
     db.delete_forever(eid)
     return Response(headers={"HX-Redirect": "/trash"})
+
+
+@rt("/e/{eid}/share")
+def post(session, eid: int, email: str = "", role: str = "Viewer"):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.add_share(eid, email, role)
+    return views.share_panel(eid)
+
+
+@rt("/e/{eid}/share/{sid}/role")
+def post(session, eid: int, sid: int, role: str = "Viewer"):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.set_share_role(sid, role)
+    return views.share_panel(eid)
+
+
+@rt("/e/{eid}/share/{sid}/remove")
+def post(session, eid: int, sid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.remove_share(sid)
+    return views.share_panel(eid)
+
+
+@rt("/e/{eid}/link")
+def post(session, eid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.create_public_link(eid)
+    return views.share_panel(eid)
+
+
+@rt("/e/{eid}/link/role")
+def post(session, eid: int, role: str = "Viewer"):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.set_public_role(eid, role)
+    return views.share_panel(eid)
+
+
+@rt("/e/{eid}/link/disable")
+def post(session, eid: int):
+    if not _user(session):
+        return Response("Unauthorized", status_code=401)
+    db.disable_public_link(eid)
+    return views.share_panel(eid)
+
+
+@rt("/public/{token}")
+def get(token: str):
+    # Public, login-free — anyone with the link can view.
+    return public_page(views.public_view(token))
 
 
 @rt("/shared")
