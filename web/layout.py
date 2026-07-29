@@ -139,7 +139,9 @@ def left_pane(active, st):
     extra = Div(A(Span("🤖", cls="nav-icon"), Span("AI Assistant"), href="/ai",
                   cls=f"nav-item {'active' if active == 'ai' else ''}"),
                 A(Span("📖", cls="nav-icon"), Span("User Guide"), href="/guide",
-                  cls=f"nav-item {'active' if active == 'guide' else ''}"), cls="nav-section")
+                  cls=f"nav-item {'active' if active == 'guide' else ''}"),
+                A(Span("⌘", cls="nav-icon"), Span("Developers"), href="/developers",
+                  cls=f"nav-item {'active' if active == 'developers' else ''}"), cls="nav-section")
     return Div(A("⬆  Upload", href="/upload", cls="up-btn"),
                Div(*items, cls="nav-section"), extra, storage, cls="left-pane")
 
