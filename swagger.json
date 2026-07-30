@@ -637,6 +637,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "List activity",
         "tags": [
           "Activity"
@@ -689,6 +694,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "Get one activity record",
         "tags": [
           "Activity"
@@ -764,6 +774,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "List files and folders",
         "tags": [
           "Files and folders"
@@ -881,6 +896,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "Get one files and folders record",
         "tags": [
           "Files and folders"
@@ -977,6 +997,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "List public links",
         "tags": [
           "Public links"
@@ -1029,6 +1054,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "Get one public links record",
         "tags": [
           "Public links"
@@ -1104,6 +1134,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "List shares",
         "tags": [
           "Shares"
@@ -1156,6 +1191,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "FastSME API token": []
+          }
+        ],
         "summary": "Get one shares record",
         "tags": [
           "Shares"
